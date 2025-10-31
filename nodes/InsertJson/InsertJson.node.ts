@@ -199,6 +199,7 @@ export class InsertJson implements INodeType {
 				staticData.jsonVault = JSON.parse(JSON.stringify(vaultRef));
 
 				// Actualizar la referencia local
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				vault = staticData.jsonVault as Record<string, any>;
 
 				// Validar tamaño
