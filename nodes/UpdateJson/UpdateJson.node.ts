@@ -101,8 +101,8 @@ export class UpdateJson implements INodeType {
 		// Asegurarse de usar staticData GLOBAL - compartido por todos los nodos
 		const staticData = this.getWorkflowStaticData('global');
 		
-		// Inicializar el vault si no existe
-		if (!staticData.jsonVault || typeof staticData.jsonVault !== 'object') {
+		// Inicializar el vault solo si realmente no existe (según documentación n8n)
+		if (staticData.jsonVault === undefined) {
 			staticData.jsonVault = {};
 		}
 		

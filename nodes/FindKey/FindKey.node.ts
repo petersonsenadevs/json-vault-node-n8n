@@ -8,21 +8,19 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import {
 	validateKey,
 	getNestedValue,
-	deleteNestedValue,
-	validateVaultSize,
 } from '../JsonVault/shared/vault-utils';
 
-export class DeleteJson implements INodeType {
+export class FindKey implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Delete JSON',
-		name: 'deleteJson',
-		icon: { light: 'file:delete-json.svg', dark: 'file:delete-json.dark.svg' },
+		displayName: 'Find Key',
+		name: 'findKey',
+		icon: { light: 'file:find-key.svg', dark: 'file:find-key.dark.svg' },
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["key"]}}',
-		description: 'Delete JSON data from the JSON Vault',
+		description: 'Find and retrieve data by key from the JSON Vault',
 		defaults: {
-			name: 'Delete JSON',
+			name: 'Find Key',
 		},
 		usableAsTool: true,
 		inputs: [NodeConnectionTypes.Main],
@@ -35,7 +33,7 @@ export class DeleteJson implements INodeType {
 				required: true,
 				default: '',
 				placeholder: 'e.g., myData, users.list',
-				description: 'The key to delete. Supports nested paths with dots (e.g., "users.admin").',
+				description: 'The key to search for. Supports nested paths with dots (e.g., "users.admin").',
 			},
 			{
 				displayName: 'Error if Not Exists',
@@ -53,14 +51,10 @@ export class DeleteJson implements INodeType {
 		// Asegurarse de usar staticData GLOBAL - compartido por todos los nodos
 		const staticData = this.getWorkflowStaticData('global');
 		
-		// Inicializar el vault solo si realmente no existe (según documentación n8n)
-		if (staticData.jsonVault === undefined) {
-			staticData.jsonVault = {};
-		}
-		
-		// Trabajar directamente sobre staticData.jsonVault (objeto compartido)
+		// SEGURIDAD: FindKey SOLO LEE, NUNCA modifica el vault
+		// Si el vault no existe, tratarlo como vacío
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const vault = staticData.jsonVault as Record<string, any>;
+		const vault = (staticData.jsonVault === undefined ? {} : staticData.jsonVault) as Record<string, any>;
 
 		const returnData: INodeExecutionData[] = [];
 
@@ -86,45 +80,29 @@ export class DeleteJson implements INodeType {
 					);
 				}
 
-				// Verificar si la clave existe
+				// Buscar el valor
 				const isNested = key.includes('.');
-				let existed = false;
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				let deletedValue: any;
+				let foundValue: any;
 
 				if (isNested) {
-					const existingValue = getNestedValue(vault, key);
-					if (existingValue !== undefined) {
-						deletedValue = existingValue;
-						existed = deleteNestedValue(vault, key);
-					} else if (errorIfNotExists) {
-						throw new NodeOperationError(
-							this.getNode(),
-							`Key "${key}" does not exist in the vault`,
-							{ itemIndex },
-						);
-					}
+					foundValue = getNestedValue(vault, key);
 				} else {
-					if (Object.prototype.hasOwnProperty.call(vault, key)) {
-						deletedValue = vault[key];
-						delete vault[key];
-						existed = true;
-					} else if (errorIfNotExists) {
-						throw new NodeOperationError(
-							this.getNode(),
-							`Key "${key}" does not exist in the vault`,
-							{ itemIndex },
-						);
-					}
+					foundValue = vault[key];
 				}
 
-				// Asegurar que los cambios persisten en staticData
-				// Como trabajamos directamente sobre staticData.jsonVault, los cambios ya están guardados
-				// Pero lo hacemos explícitamente para asegurar persistencia
-				staticData.jsonVault = vault;
-
-				// Validar tamaño (aunque estemos eliminando, validamos por seguridad)
-				validateVaultSize(vault);
+				// Verificar si existe
+				if (foundValue === undefined) {
+					if (errorIfNotExists) {
+						throw new NodeOperationError(
+							this.getNode(),
+							`Key "${key}" does not exist in the vault`,
+							{ itemIndex },
+						);
+					}
+					// Si no existe y no se requiere error, retornar null
+					foundValue = null;
+				}
 
 				// Crear item de salida con información de la operación
 				const outputItem: INodeExecutionData = {
@@ -132,9 +110,8 @@ export class DeleteJson implements INodeType {
 						...items[itemIndex].json,
 						success: true,
 						key,
-						action: 'deleted',
-						existed,
-						deletedValue: existed ? deletedValue : undefined,
+						found: foundValue !== null && foundValue !== undefined,
+						value: foundValue,
 						vaultSize: Object.keys(vault).length,
 					},
 					pairedItem: { item: itemIndex },
@@ -173,3 +150,4 @@ export class DeleteJson implements INodeType {
 		return [returnData];
 	}
 }
+

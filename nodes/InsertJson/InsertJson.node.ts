@@ -94,8 +94,8 @@ export class InsertJson implements INodeType {
 		// Asegurarse de usar staticData GLOBAL - compartido por todos los nodos
 		const staticData = this.getWorkflowStaticData('global');
 		
-		// Inicializar el vault si no existe
-		if (!staticData.jsonVault || typeof staticData.jsonVault !== 'object') {
+		// Inicializar el vault solo si realmente no existe (según documentación n8n)
+		if (staticData.jsonVault === undefined) {
 			staticData.jsonVault = {};
 		}
 		
@@ -146,6 +146,24 @@ export class InsertJson implements INodeType {
 
 				// Determinar si es una ruta anidada
 				const isNested = key.includes('.');
+
+				// Verificar si la clave ya existe (solo para mergeMode === 'replace')
+				if (mergeMode === 'replace') {
+					let existingValue;
+					if (isNested) {
+						existingValue = getNestedValue(vault, key);
+					} else {
+						existingValue = vault[key];
+					}
+
+					if (existingValue !== undefined) {
+						throw new NodeOperationError(
+							this.getNode(),
+							`Key "${key}" already exists in the vault. Use Merge Mode to update existing keys or use Update JSON node.`,
+							{ itemIndex },
+						);
+					}
+				}
 
 				if (isNested) {
 					// Ruta anidada

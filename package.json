@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-json-vault",
-	"version": "0.1.12",
+	"version": "0.2.0",
 	"description": "JSON Vault system for n8n - A centralized JSON storage system for temporary data within workflows",
 	"license": "MIT",
 	"homepage": "",
@@ -41,12 +41,12 @@
 		"nodes": [
 			"dist/nodes/GithubIssues/GithubIssues.node.js",
 			"dist/nodes/Example/Example.node.js",
-			"dist/nodes/JsonVault/JsonVault.node.js",
 			"dist/nodes/InsertJson/InsertJson.node.js",
 			"dist/nodes/UpdateJson/UpdateJson.node.js",
 			"dist/nodes/DeleteJson/DeleteJson.node.js",
 			"dist/nodes/ClearJson/ClearJson.node.js",
-			"dist/nodes/ListJson/ListJson.node.js"
+			"dist/nodes/ListJson/ListJson.node.js",
+			"dist/nodes/FindKey/FindKey.node.js"
 		]
 	},
 	"devDependencies": {

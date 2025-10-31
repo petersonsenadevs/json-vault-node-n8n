@@ -1,5 +1,5 @@
 {
-	"node": "n8n-nodes-json-vault",
+	"node": "n8n-nodes-find-key",
 	"nodeVersion": "1.0.6",
 	"codexVersion": "1.0.6",
 	"categories": ["Data", "Transform"],
@@ -11,3 +11,4 @@
 		]
 	}
 }
+

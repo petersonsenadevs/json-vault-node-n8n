@@ -106,46 +106,14 @@ export class ListJson implements INodeType {
 		const staticData = this.getWorkflowStaticData('global');
 
 		// SEGURIDAD: ListJson SOLO LEE, NUNCA modifica el vault
-		// NO inicializar el vault - solo leer. Si no existe, retornar mensaje informativo
-		if (!staticData.jsonVault || typeof staticData.jsonVault !== 'object') {
-			// Vault no existe o no está inicializado - retornar mensaje, NO inicializar
-			const returnDataEmpty: INodeExecutionData[] = [];
-			for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-				returnDataEmpty.push({
-					json: {
-						...items[itemIndex].json,
-						message: 'Vault is empty or not initialized',
-						vault: {},
-						keys: [],
-						count: 0,
-						success: true,
-					},
-					pairedItem: { item: itemIndex },
-				});
-			}
-			// Si no hay items, retornar un item vacío con el mensaje
-			if (items.length === 0) {
-				return [[{
-					json: {
-						message: 'Vault is empty or not initialized',
-						vault: {},
-						keys: [],
-						count: 0,
-						success: true,
-					},
-				}]];
-			}
-			return [returnDataEmpty];
-		}
-
-		// Leer directamente desde staticData.jsonVault (SOLO LECTURA)
-		// IMPORTANTE: Esta referencia es SOLO para lectura
-		// NUNCA asignar nuevos valores a esta variable ni modificar sus propiedades
+		// Si el vault no existe (undefined), tratarlo como objeto vacío silenciosamente
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const vault = staticData.jsonVault as Record<string, any>;
+		const vault = (staticData.jsonVault === undefined ? {} : staticData.jsonVault) as Record<string, any>;
 
 		// PROTECCIÓN: Guardar snapshot del estado original del vault para validación
-		const vaultSnapshot = JSON.stringify(vault);
+		// Usar el vault original de staticData, no el temporal
+		const originalVault = staticData.jsonVault === undefined ? {} : staticData.jsonVault;
+		const vaultSnapshot = JSON.stringify(originalVault);
 
 		const returnData: INodeExecutionData[] = [];
 
@@ -251,17 +219,19 @@ export class ListJson implements INodeType {
 		}
 
 		// SEGURIDAD FINAL: Verificar que el vault no se haya modificado después de todo el procesamiento
-		const finalVaultState = JSON.stringify(staticData.jsonVault);
-		if (finalVaultState !== vaultSnapshot) {
-			// Si cambió, restaurar (aunque no debería pasar nunca)
-			staticData.jsonVault = JSON.parse(vaultSnapshot);
+		// Solo verificar si el vault existe (no undefined)
+		if (staticData.jsonVault !== undefined) {
+			const finalVaultState = JSON.stringify(staticData.jsonVault);
+			if (finalVaultState !== vaultSnapshot) {
+				// Si cambió, restaurar (aunque no debería pasar nunca)
+				staticData.jsonVault = JSON.parse(vaultSnapshot);
+			}
 		}
 
-		// Si no hay items de entrada y no hay datos procesados, retornar al menos un item
+		// Si no hay items de entrada y no hay datos procesados, retornar estructura vacía silenciosamente
 		if (returnData.length === 0 && items.length === 0) {
 			return [[{
 				json: {
-					message: 'No items to process',
 					vault: vault,
 					keys: Object.keys(vault),
 					count: Object.keys(vault).length,
