@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-json-vault",
-	"version": "0.2.3",
+	"version": "0.2.4",
 	"description": "JSON Vault system for n8n - A centralized JSON storage system for temporary data within workflows",
 	"license": "MIT",
 	"homepage": "",

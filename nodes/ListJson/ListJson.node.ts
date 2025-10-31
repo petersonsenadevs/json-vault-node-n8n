@@ -127,9 +127,8 @@ export class ListJson implements INodeType {
 		const vault = staticData.jsonVault as Record<string, any>;
 
 		// PROTECCIÓN: Guardar snapshot del estado original del vault para validación
-		// Usar el vault original de staticData, no el temporal
-		const originalVault = staticData.jsonVault === undefined ? {} : staticData.jsonVault;
-		const vaultSnapshot = JSON.stringify(originalVault);
+		// Usar el vault original de staticData (ya verificado arriba que existe)
+		const vaultSnapshot = JSON.stringify(vault);
 
 		const returnData: INodeExecutionData[] = [];
 
