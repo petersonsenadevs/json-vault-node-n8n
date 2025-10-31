@@ -95,11 +95,12 @@ export class InsertJson implements INodeType {
 		const staticData = this.getWorkflowStaticData('global');
 		
 		// Inicializar el vault solo si realmente no existe (según documentación n8n)
+		// CRÍTICO: Trabajar directamente sobre staticData.jsonVault para que n8n detecte los cambios
 		if (staticData.jsonVault === undefined) {
 			staticData.jsonVault = {};
 		}
 		
-		// Trabajar directamente sobre staticData.jsonVault (objeto compartido)
+		// Trabajar DIRECTAMENTE sobre staticData.jsonVault (no crear referencia nueva)
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const vault = staticData.jsonVault as Record<string, any>;
 
@@ -148,12 +149,16 @@ export class InsertJson implements INodeType {
 				const isNested = key.includes('.');
 
 				// Verificar si la clave ya existe (solo para mergeMode === 'replace')
+				// Trabajar directamente sobre staticData.jsonVault
 				if (mergeMode === 'replace') {
 					let existingValue;
 					if (isNested) {
-						existingValue = getNestedValue(vault, key);
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						existingValue = getNestedValue(staticData.jsonVault as Record<string, any>, key);
 					} else {
-						existingValue = vault[key];
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const vaultRef = staticData.jsonVault as Record<string, any>;
+						existingValue = vaultRef[key];
 					}
 
 					if (existingValue !== undefined) {
@@ -165,31 +170,34 @@ export class InsertJson implements INodeType {
 					}
 				}
 
+				// Trabajar DIRECTAMENTE sobre staticData.jsonVault para que n8n detecte los cambios
 				if (isNested) {
-					// Ruta anidada
+					// Ruta anidada - trabajar sobre staticData directamente
 					if (mergeMode === 'merge') {
-						const existingValue = getNestedValue(vault, key);
+						const existingValue = getNestedValue(staticData.jsonVault, key);
 						if (existingValue !== undefined && typeof existingValue === 'object' && !Array.isArray(existingValue) && typeof jsonValue === 'object' && !Array.isArray(jsonValue)) {
 							jsonValue = deepMerge(existingValue, jsonValue);
 						}
 					}
-					setNestedValue(vault, key, jsonValue);
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					setNestedValue(staticData.jsonVault as Record<string, any>, key, jsonValue);
 				} else {
-					// Clave simple
-					if (mergeMode === 'merge' && vault[key] !== undefined && typeof vault[key] === 'object' && !Array.isArray(vault[key]) && typeof jsonValue === 'object' && !Array.isArray(jsonValue)) {
-						vault[key] = deepMerge(vault[key], jsonValue);
+					// Clave simple - trabajar directamente sobre staticData.jsonVault
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const vaultRef = staticData.jsonVault as Record<string, any>;
+					if (mergeMode === 'merge' && vaultRef[key] !== undefined && typeof vaultRef[key] === 'object' && !Array.isArray(vaultRef[key]) && typeof jsonValue === 'object' && !Array.isArray(jsonValue)) {
+						vaultRef[key] = deepMerge(vaultRef[key], jsonValue);
 					} else {
-						vault[key] = jsonValue;
+						vaultRef[key] = jsonValue;
 					}
 				}
 
-				// Asegurar que los cambios persisten en staticData
-				// Como trabajamos directamente sobre staticData.jsonVault, los cambios ya están guardados
-				// Pero lo hacemos explícitamente para asegurar persistencia
-				staticData.jsonVault = vault;
+				// Los cambios ya están aplicados directamente sobre staticData.jsonVault
+				// n8n detectará automáticamente los cambios al finalizar la ejecución exitosa
 
 				// Validar tamaño
-				validateVaultSize(vault);
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				validateVaultSize(staticData.jsonVault as Record<string, any>);
 
 				// Crear item de salida con información de la operación
 				const outputItem: INodeExecutionData = {

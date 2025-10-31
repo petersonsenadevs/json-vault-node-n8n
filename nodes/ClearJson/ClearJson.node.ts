@@ -63,13 +63,12 @@ export class ClearJson implements INodeType {
 		const staticData = this.getWorkflowStaticData('global');
 
 		// Inicializar el vault solo si realmente no existe (según documentación n8n)
+		// CRÍTICO: Trabajar directamente sobre staticData.jsonVault para que n8n detecte los cambios
 		if (staticData.jsonVault === undefined) {
 			staticData.jsonVault = {};
 		}
 
-		// Trabajar directamente sobre staticData.jsonVault (objeto compartido)
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const vault = staticData.jsonVault as Record<string, any>;
+		// Trabajar DIRECTAMENTE sobre staticData.jsonVault (no crear referencia nueva)
 
 		const returnData: INodeExecutionData[] = [];
 
@@ -78,10 +77,13 @@ export class ClearJson implements INodeType {
 				const clearMode = this.getNodeParameter('clearMode', itemIndex, 'all') as string;
 
 				if (clearMode === 'all') {
-					// Limpiar todo el vault
-					Object.keys(vault).forEach((key) => {
-						delete vault[key];
+					// Limpiar todo el vault - trabajar directamente sobre staticData
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const vaultRef = staticData.jsonVault as Record<string, any>;
+					Object.keys(vaultRef).forEach((key) => {
+						delete vaultRef[key];
 					});
+					// Crear nuevo objeto vacío para asegurar que n8n detecte el cambio
 					staticData.jsonVault = {};
 				} else {
 					// Limpiar una clave específica
@@ -99,7 +101,7 @@ export class ClearJson implements INodeType {
 					if (key.includes('.')) {
 						const keys = key.split('.');
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						let current: any = vault;
+						let current: any = staticData.jsonVault;
 
 						for (let i = 0; i < keys.length - 1; i++) {
 							if (!current[keys[i]] || typeof current[keys[i]] !== 'object') {
@@ -114,13 +116,13 @@ export class ClearJson implements INodeType {
 							delete current[lastKey];
 						}
 					} else {
-						if (Object.prototype.hasOwnProperty.call(vault, key)) {
-							delete vault[key];
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const vaultRef = staticData.jsonVault as Record<string, any>;
+						if (Object.prototype.hasOwnProperty.call(vaultRef, key)) {
+							delete vaultRef[key];
 						}
 					}
-
-					// Guardar cambios
-					staticData.jsonVault = vault;
+					// Los cambios ya están aplicados directamente sobre staticData.jsonVault
 				}
 
 				// Crear item de salida con información de la operación
@@ -130,7 +132,8 @@ export class ClearJson implements INodeType {
 						success: true,
 						action: clearMode === 'all' ? 'cleared_all' : 'cleared_key',
 						key: clearMode === 'key' ? this.getNodeParameter('key', itemIndex, '') : undefined,
-						vaultSize: Object.keys(vault).length,
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						vaultSize: Object.keys(staticData.jsonVault as Record<string, any>).length,
 					},
 					pairedItem: { item: itemIndex },
 				};
