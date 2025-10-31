@@ -193,10 +193,19 @@ export class InsertJson implements INodeType {
 					}
 				}
 
-				// CRÍTICO: Forzar la persistencia creando una nueva referencia del objeto
-				// Esto asegura que n8n detecte los cambios y los guarde correctamente
-				// Crear una copia profunda del objeto para forzar la detección del cambio
-				staticData.jsonVault = JSON.parse(JSON.stringify(vaultRef));
+				// CRÍTICO: Forzar la detección de cambios en n8n
+				// Agregar un timestamp/metadata para forzar que n8n detecte el cambio
+				// Esto asegura que los datos persistan correctamente
+				// Trabajamos directamente sobre vaultRef que es la misma referencia que staticData.jsonVault
+				// Pero forzamos una reasignación con un nuevo objeto para asegurar la detección
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const updatedVault: Record<string, any> = {};
+				Object.keys(vaultRef).forEach((k) => {
+					updatedVault[k] = vaultRef[k];
+				});
+				// Agregar metadata para forzar detección de cambio
+				updatedVault['_lastModified'] = Date.now();
+				staticData.jsonVault = updatedVault;
 
 				// Actualizar la referencia local
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any

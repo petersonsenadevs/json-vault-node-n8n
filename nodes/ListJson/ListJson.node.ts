@@ -107,8 +107,24 @@ export class ListJson implements INodeType {
 
 		// SEGURIDAD: ListJson SOLO LEE, NUNCA modifica el vault
 		// Si el vault no existe (undefined), tratarlo como objeto vacío silenciosamente
+		// Asegurar que siempre tengamos un objeto válido
+		if (staticData.jsonVault === undefined || typeof staticData.jsonVault !== 'object' || staticData.jsonVault === null) {
+			// Vault no existe o está corrupto, retornar vacío
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const emptyVault: Record<string, any> = {};
+			return [[{
+				json: {
+					...(items.length > 0 ? items[0].json : {}),
+					vault: emptyVault,
+					keys: [],
+					count: 0,
+					success: true,
+				},
+				pairedItem: items.length > 0 ? { item: 0 } : undefined,
+			}]];
+		}
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const vault = (staticData.jsonVault === undefined ? {} : staticData.jsonVault) as Record<string, any>;
+		const vault = staticData.jsonVault as Record<string, any>;
 
 		// PROTECCIÓN: Guardar snapshot del estado original del vault para validación
 		// Usar el vault original de staticData, no el temporal
