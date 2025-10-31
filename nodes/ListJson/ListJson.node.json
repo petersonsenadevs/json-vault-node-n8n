@@ -1,0 +1,14 @@
+{
+	"node": "n8n-nodes-list-json",
+	"nodeVersion": "1.0.6",
+	"codexVersion": "1.0.6",
+	"categories": ["Data", "Transform"],
+	"resources": {
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/n8n-io/n8n-nodes-starter"
+			}
+		]
+	}
+}
+
