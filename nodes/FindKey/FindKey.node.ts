@@ -8,7 +8,6 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import {
 	validateKey,
 	getNestedValue,
-	countVaultKeys,
 } from '../JsonVault/shared/vault-utils';
 
 export class FindKey implements INodeType {
@@ -54,7 +53,7 @@ export class FindKey implements INodeType {
 		
 		// SEGURIDAD: FindKey SOLO LEE, NUNCA modifica el vault
 		// Si el vault no existe, tratarlo como vacío
-		if (staticData.jsonVault === undefined || typeof staticData.jsonVault !== 'object' || staticData.jsonVault === null) {
+		if (!staticData.jsonVault) {
 			// Vault no existe, retornar que no se encontró
 			if (items.length === 0) {
 				return [[{
@@ -145,18 +144,14 @@ export class FindKey implements INodeType {
 				}
 
 				// Crear item de salida con SOLO la información de la búsqueda
-				// No incluir todo el vault, solo el valor encontrado
 				const outputItem: INodeExecutionData = {
 					json: {
-						// Solo incluir datos del item anterior que no sean del vault
 						...(items[itemIndex]?.json || {}),
-						// Resultado de la búsqueda
 						success: true,
 						key,
 						found: foundValue !== null && foundValue !== undefined,
 						value: foundValue,
-						// Información adicional útil
-						vaultSize: countVaultKeys(vault),
+						vaultSize: Object.keys(vault).length,
 					},
 					pairedItem: { item: itemIndex },
 				};

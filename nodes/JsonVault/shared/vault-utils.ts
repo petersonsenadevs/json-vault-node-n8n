@@ -139,25 +139,3 @@ export function validateVaultSize(vault: Record<string, any>): void {
 	}
 }
 
-/**
- * Obtiene el vault sin campos de metadata interna (como _lastModified)
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getVaultWithoutMetadata(vault: Record<string, any>): Record<string, any> {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const cleanVault: Record<string, any> = {};
-	Object.keys(vault).forEach((key) => {
-		if (key !== '_lastModified') {
-			cleanVault[key] = vault[key];
-		}
-	});
-	return cleanVault;
-}
-
-/**
- * Cuenta las claves del vault excluyendo metadata interna
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function countVaultKeys(vault: Record<string, any>): number {
-	return Object.keys(vault).filter((key) => key !== '_lastModified').length;
-}

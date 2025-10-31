@@ -12,8 +12,6 @@ import {
 	setNestedValue,
 	validateVaultSize,
 	deepMerge,
-	getVaultWithoutMetadata,
-	countVaultKeys,
 } from '../JsonVault/shared/vault-utils';
 
 export class InsertJson implements INodeType {
@@ -96,16 +94,10 @@ export class InsertJson implements INodeType {
 		// Asegurarse de usar staticData GLOBAL - compartido por todos los nodos
 		const staticData = this.getWorkflowStaticData('global');
 		
-		// CRÍTICO: Siempre asegurar que el vault esté inicializado
-		// Si no existe o no es un objeto, inicializarlo
-		// Esto garantiza que los datos persistan entre ejecuciones
-		if (staticData.jsonVault === undefined || typeof staticData.jsonVault !== 'object' || staticData.jsonVault === null) {
+		// Inicializar el vault si no existe (como en el ejemplo del usuario)
+		if (!staticData.jsonVault) {
 			staticData.jsonVault = {};
 		}
-		
-		// Trabajar DIRECTAMENTE sobre staticData.jsonVault para que n8n detecte los cambios
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		let vault = staticData.jsonVault as Record<string, any>;
 
 		const returnData: INodeExecutionData[] = [];
 
@@ -151,17 +143,17 @@ export class InsertJson implements INodeType {
 				// Determinar si es una ruta anidada
 				const isNested = key.includes('.');
 
+				// Trabajar DIRECTAMENTE sobre staticData.jsonVault (como en el ejemplo del usuario)
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const vault = staticData.jsonVault as Record<string, any>;
+
 				// Verificar si la clave ya existe (solo para mergeMode === 'replace')
-				// Trabajar directamente sobre staticData.jsonVault
 				if (mergeMode === 'replace') {
 					let existingValue;
 					if (isNested) {
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						existingValue = getNestedValue(staticData.jsonVault as Record<string, any>, key);
+						existingValue = getNestedValue(vault, key);
 					} else {
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const vaultRef = staticData.jsonVault as Record<string, any>;
-						existingValue = vaultRef[key];
+						existingValue = vault[key];
 					}
 
 					if (existingValue !== undefined) {
@@ -173,51 +165,27 @@ export class InsertJson implements INodeType {
 					}
 				}
 
-				// Trabajar DIRECTAMENTE sobre staticData.jsonVault para que n8n detecte los cambios
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const vaultRef = staticData.jsonVault as Record<string, any>;
-				
+				// Asignación directa sobre staticData.jsonVault
 				if (isNested) {
-					// Ruta anidada - trabajar sobre staticData directamente
+					// Ruta anidada
 					if (mergeMode === 'merge') {
-						const existingValue = getNestedValue(vaultRef, key);
+						const existingValue = getNestedValue(vault, key);
 						if (existingValue !== undefined && typeof existingValue === 'object' && !Array.isArray(existingValue) && typeof jsonValue === 'object' && !Array.isArray(jsonValue)) {
 							jsonValue = deepMerge(existingValue, jsonValue);
 						}
 					}
-					setNestedValue(vaultRef, key, jsonValue);
+					setNestedValue(vault, key, jsonValue);
 				} else {
-					// Clave simple - trabajar directamente sobre staticData.jsonVault
-					if (mergeMode === 'merge' && vaultRef[key] !== undefined && typeof vaultRef[key] === 'object' && !Array.isArray(vaultRef[key]) && typeof jsonValue === 'object' && !Array.isArray(jsonValue)) {
-						vaultRef[key] = deepMerge(vaultRef[key], jsonValue);
+					// Clave simple - asignación directa
+					if (mergeMode === 'merge' && vault[key] !== undefined && typeof vault[key] === 'object' && !Array.isArray(vault[key]) && typeof jsonValue === 'object' && !Array.isArray(jsonValue)) {
+						vault[key] = deepMerge(vault[key], jsonValue);
 					} else {
-						vaultRef[key] = jsonValue;
+						vault[key] = jsonValue;
 					}
 				}
 
-				// CRÍTICO: Forzar la detección de cambios en n8n
-				// Agregar un timestamp/metadata para forzar que n8n detecte el cambio
-				// Esto asegura que los datos persistan correctamente
-				// Trabajamos directamente sobre vaultRef que es la misma referencia que staticData.jsonVault
-				// Pero forzamos una reasignación con un nuevo objeto para asegurar la detección
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const updatedVault: Record<string, any> = {};
-				Object.keys(vaultRef).forEach((k) => {
-					updatedVault[k] = vaultRef[k];
-				});
-				// Agregar metadata para forzar detección de cambio
-				updatedVault['_lastModified'] = Date.now();
-				staticData.jsonVault = updatedVault;
-
-				// Actualizar la referencia local
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				vault = staticData.jsonVault as Record<string, any>;
-
 				// Validar tamaño
 				validateVaultSize(vault);
-
-				// Obtener vault sin metadata para el output
-				const cleanVault = getVaultWithoutMetadata(vault);
 
 				// Crear item de salida con información de la operación
 				const outputItem: INodeExecutionData = {
@@ -226,10 +194,10 @@ export class InsertJson implements INodeType {
 						success: true,
 						key,
 						action: 'inserted',
-						vaultSize: countVaultKeys(vault),
-						vault: cleanVault,
-						keys: Object.keys(cleanVault),
-						count: Object.keys(cleanVault).length,
+						vaultSize: Object.keys(vault).length,
+						vault: vault,
+						keys: Object.keys(vault),
+						count: Object.keys(vault).length,
 					},
 					pairedItem: { item: itemIndex },
 				};

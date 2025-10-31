@@ -5,10 +5,6 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
-import {
-	getVaultWithoutMetadata,
-	countVaultKeys,
-} from '../JsonVault/shared/vault-utils';
 
 /**
  * Función helper para obtener todas las claves de un objeto, incluyendo rutas anidadas
@@ -89,10 +85,8 @@ export class ListJson implements INodeType {
 		const staticData = this.getWorkflowStaticData('global');
 
 		// SEGURIDAD: ListJson SOLO LEE, NUNCA modifica el vault
-		// Si el vault no existe (undefined), tratarlo como objeto vacío silenciosamente
-		// Asegurar que siempre tengamos un objeto válido
-		if (staticData.jsonVault === undefined || typeof staticData.jsonVault !== 'object' || staticData.jsonVault === null) {
-			// Vault no existe o está corrupto, retornar vacío
+		// Si el vault no existe, tratarlo como objeto vacío
+		if (!staticData.jsonVault) {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const emptyVault: Record<string, any> = {};
 			return [[{
@@ -109,11 +103,7 @@ export class ListJson implements INodeType {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const vault = staticData.jsonVault as Record<string, any>;
 
-		// Obtener vault sin metadata interna para mostrar al usuario
-		const cleanVault = getVaultWithoutMetadata(vault);
-
 		// PROTECCIÓN: Guardar snapshot del estado original del vault para validación
-		// Usar el vault original de staticData (ya verificado arriba que existe)
 		const vaultSnapshot = JSON.stringify(vault);
 
 		const returnData: INodeExecutionData[] = [];
@@ -130,35 +120,35 @@ export class ListJson implements INodeType {
 				let output: any;
 
 				if (outputFormat === 'vault') {
-					// Retornar el vault completo (sin metadata)
+					// Retornar el vault completo
 					output = {
-						vault: cleanVault,
-						totalKeys: countVaultKeys(vault),
-						totalKeysNested: includeNested ? getAllKeys(cleanVault).length : countVaultKeys(vault),
+						vault: vault,
+						totalKeys: Object.keys(vault).length,
+						totalKeysNested: includeNested ? getAllKeys(vault).length : Object.keys(vault).length,
 					};
 				} else if (outputFormat === 'keys') {
-					// Retornar solo las claves (sin metadata)
+					// Retornar solo las claves
 					if (includeNested) {
-						const allKeys = getAllKeys(cleanVault);
+						const allKeys = getAllKeys(vault);
 						output = {
 							keys: allKeys,
 							count: allKeys.length,
 						};
 					} else {
-						const keys = Object.keys(cleanVault);
+						const keys = Object.keys(vault);
 						output = {
 							keys: keys,
 							count: keys.length,
 						};
 					}
 				} else {
-					// Retornar claves y valores (sin metadata)
+					// Retornar claves y valores
 					// NOTA: Cuando includeNested es true, solo mostramos las claves de primer nivel
 					// para evitar duplicación. Si quieren ver anidados, pueden usar el formato 'vault'
-					const keys = Object.keys(cleanVault);
+					const keys = Object.keys(vault);
 					const keyValuePairs = keys.map((key) => ({
 						key,
-						value: cleanVault[key],
+						value: vault[key],
 						isNested: false,
 					}));
 					output = {

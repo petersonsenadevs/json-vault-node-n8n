@@ -53,13 +53,14 @@ export class DeleteJson implements INodeType {
 		// Asegurarse de usar staticData GLOBAL - compartido por todos los nodos
 		const staticData = this.getWorkflowStaticData('global');
 		
-		// Inicializar el vault solo si realmente no existe (según documentación n8n)
-		// CRÍTICO: Trabajar directamente sobre staticData.jsonVault para que n8n detecte los cambios
-		if (staticData.jsonVault === undefined) {
+		// Inicializar el vault si no existe (como en el ejemplo del usuario)
+		if (!staticData.jsonVault) {
 			staticData.jsonVault = {};
 		}
 		
-		// Trabajar DIRECTAMENTE sobre staticData.jsonVault (no crear referencia nueva)
+		// Trabajar DIRECTAMENTE sobre staticData.jsonVault
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const vault = staticData.jsonVault as Record<string, any>;
 
 		const returnData: INodeExecutionData[] = [];
 
@@ -85,19 +86,17 @@ export class DeleteJson implements INodeType {
 					);
 				}
 
-				// Verificar si la clave existe - trabajar DIRECTAMENTE sobre staticData.jsonVault
+				// Verificar si la clave existe y eliminar directamente
 				const isNested = key.includes('.');
 				let existed = false;
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				let deletedValue: any;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const vaultRef = staticData.jsonVault as Record<string, any>;
 
 				if (isNested) {
-					const existingValue = getNestedValue(vaultRef, key);
+					const existingValue = getNestedValue(vault, key);
 					if (existingValue !== undefined) {
 						deletedValue = existingValue;
-						existed = deleteNestedValue(vaultRef, key);
+						existed = deleteNestedValue(vault, key);
 					} else if (errorIfNotExists) {
 						throw new NodeOperationError(
 							this.getNode(),
@@ -106,9 +105,10 @@ export class DeleteJson implements INodeType {
 						);
 					}
 				} else {
-					if (Object.prototype.hasOwnProperty.call(vaultRef, key)) {
-						deletedValue = vaultRef[key];
-						delete vaultRef[key];
+					// Eliminación directa
+					if (Object.prototype.hasOwnProperty.call(vault, key)) {
+						deletedValue = vault[key];
+						delete vault[key];
 						existed = true;
 					} else if (errorIfNotExists) {
 						throw new NodeOperationError(
@@ -119,12 +119,8 @@ export class DeleteJson implements INodeType {
 					}
 				}
 
-				// Los cambios ya están aplicados directamente sobre staticData.jsonVault
-				// n8n detectará automáticamente los cambios al finalizar la ejecución exitosa
-
-				// Validar tamaño (aunque estemos eliminando, validamos por seguridad)
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				validateVaultSize(staticData.jsonVault as Record<string, any>);
+				// Validar tamaño
+				validateVaultSize(vault);
 
 				// Crear item de salida con información de la operación
 				const outputItem: INodeExecutionData = {
@@ -135,8 +131,7 @@ export class DeleteJson implements INodeType {
 						action: 'deleted',
 						existed,
 						deletedValue: existed ? deletedValue : undefined,
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						vaultSize: Object.keys(staticData.jsonVault as Record<string, any>).length,
+						vaultSize: Object.keys(vault).length,
 					},
 					pairedItem: { item: itemIndex },
 				};
