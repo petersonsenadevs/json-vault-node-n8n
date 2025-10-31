@@ -177,6 +177,8 @@ export class UpdateJson implements INodeType {
 						jsonValue = deepMerge(existingValue, jsonValue);
 					}
 					setNestedValue(vault, key, jsonValue);
+					// Forzar detección: reasignar para que n8n detecte el cambio
+					staticData.jsonVault = vault;
 				} else {
 					// Asignación directa
 					if (mergeMode === 'merge' && existingValue !== undefined && typeof existingValue === 'object' && !Array.isArray(existingValue) && typeof jsonValue === 'object' && !Array.isArray(jsonValue)) {
@@ -184,10 +186,13 @@ export class UpdateJson implements INodeType {
 					} else {
 						vault[key] = jsonValue;
 					}
+					// Forzar detección: reasignar para que n8n detecte el cambio
+					staticData.jsonVault = vault;
 				}
 
 				// Validar tamaño
-				validateVaultSize(vault);
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				validateVaultSize(staticData.jsonVault as Record<string, any>);
 
 				// Crear item de salida con información de la operación
 				const outputItem: INodeExecutionData = {

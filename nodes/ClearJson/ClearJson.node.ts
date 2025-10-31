@@ -114,6 +114,8 @@ export class ClearJson implements INodeType {
 							delete vault[key];
 						}
 					}
+					// Forzar detección: reasignar para que n8n detecte el cambio
+					staticData.jsonVault = vault;
 				}
 
 				// Crear item de salida con información de la operación

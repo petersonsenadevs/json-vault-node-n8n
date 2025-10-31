@@ -97,6 +97,8 @@ export class DeleteJson implements INodeType {
 					if (existingValue !== undefined) {
 						deletedValue = existingValue;
 						existed = deleteNestedValue(vault, key);
+						// Forzar detección: reasignar para que n8n detecte el cambio
+						staticData.jsonVault = vault;
 					} else if (errorIfNotExists) {
 						throw new NodeOperationError(
 							this.getNode(),
@@ -110,6 +112,8 @@ export class DeleteJson implements INodeType {
 						deletedValue = vault[key];
 						delete vault[key];
 						existed = true;
+						// Forzar detección: reasignar para que n8n detecte el cambio
+						staticData.jsonVault = vault;
 					} else if (errorIfNotExists) {
 						throw new NodeOperationError(
 							this.getNode(),
@@ -120,7 +124,8 @@ export class DeleteJson implements INodeType {
 				}
 
 				// Validar tamaño
-				validateVaultSize(vault);
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				validateVaultSize(staticData.jsonVault as Record<string, any>);
 
 				// Crear item de salida con información de la operación
 				const outputItem: INodeExecutionData = {
