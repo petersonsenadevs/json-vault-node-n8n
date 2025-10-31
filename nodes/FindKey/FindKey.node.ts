@@ -8,6 +8,7 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import {
 	validateKey,
 	getNestedValue,
+	countVaultKeys,
 } from '../JsonVault/shared/vault-utils';
 
 export class FindKey implements INodeType {
@@ -53,8 +54,47 @@ export class FindKey implements INodeType {
 		
 		// SEGURIDAD: FindKey SOLO LEE, NUNCA modifica el vault
 		// Si el vault no existe, tratarlo como vacío
+		if (staticData.jsonVault === undefined || typeof staticData.jsonVault !== 'object' || staticData.jsonVault === null) {
+			// Vault no existe, retornar que no se encontró
+			if (items.length === 0) {
+				return [[{
+					json: {
+						key: '',
+						found: false,
+						value: null,
+						success: true,
+					},
+				}]];
+			}
+			// Para cada item, retornar que no se encontró
+			const returnData: INodeExecutionData[] = [];
+			for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+				const key = this.getNodeParameter('key', itemIndex, '') as string;
+				const errorIfNotExists = this.getNodeParameter('errorIfNotExists', itemIndex, false) as boolean;
+				
+				if (errorIfNotExists && key) {
+					throw new NodeOperationError(
+						this.getNode(),
+						`Key "${key}" does not exist in the vault`,
+						{ itemIndex },
+					);
+				}
+				
+				returnData.push({
+					json: {
+						...items[itemIndex].json,
+						key: key || '',
+						found: false,
+						value: null,
+						success: true,
+					},
+					pairedItem: { item: itemIndex },
+				});
+			}
+			return [returnData];
+		}
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const vault = (staticData.jsonVault === undefined ? {} : staticData.jsonVault) as Record<string, any>;
+		const vault = staticData.jsonVault as Record<string, any>;
 
 		const returnData: INodeExecutionData[] = [];
 
@@ -104,15 +144,19 @@ export class FindKey implements INodeType {
 					foundValue = null;
 				}
 
-				// Crear item de salida con información de la operación
+				// Crear item de salida con SOLO la información de la búsqueda
+				// No incluir todo el vault, solo el valor encontrado
 				const outputItem: INodeExecutionData = {
 					json: {
-						...items[itemIndex].json,
+						// Solo incluir datos del item anterior que no sean del vault
+						...(items[itemIndex]?.json || {}),
+						// Resultado de la búsqueda
 						success: true,
 						key,
 						found: foundValue !== null && foundValue !== undefined,
 						value: foundValue,
-						vaultSize: Object.keys(vault).length,
+						// Información adicional útil
+						vaultSize: countVaultKeys(vault),
 					},
 					pairedItem: { item: itemIndex },
 				};

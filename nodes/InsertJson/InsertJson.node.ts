@@ -12,6 +12,8 @@ import {
 	setNestedValue,
 	validateVaultSize,
 	deepMerge,
+	getVaultWithoutMetadata,
+	countVaultKeys,
 } from '../JsonVault/shared/vault-utils';
 
 export class InsertJson implements INodeType {
@@ -214,6 +216,9 @@ export class InsertJson implements INodeType {
 				// Validar tamaño
 				validateVaultSize(vault);
 
+				// Obtener vault sin metadata para el output
+				const cleanVault = getVaultWithoutMetadata(vault);
+
 				// Crear item de salida con información de la operación
 				const outputItem: INodeExecutionData = {
 					json: {
@@ -221,7 +226,10 @@ export class InsertJson implements INodeType {
 						success: true,
 						key,
 						action: 'inserted',
-						vaultSize: Object.keys(vault).length,
+						vaultSize: countVaultKeys(vault),
+						vault: cleanVault,
+						keys: Object.keys(cleanVault),
+						count: Object.keys(cleanVault).length,
 					},
 					pairedItem: { item: itemIndex },
 				};
